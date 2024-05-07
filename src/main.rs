@@ -33,12 +33,7 @@ fn gitignore_repo_dir() -> Option<String> {
 }
 
 fn local_gitignore_or_create() -> File {
-    if let Some(f) = OpenOptions::new()
-        .write(true)
-        .append(true)
-        .open(".gitignore")
-        .ok()
-    {
+    if let Ok(f) = OpenOptions::new().append(true).open(".gitignore") {
         f
     } else {
         File::create(".gitignore").unwrap()
@@ -76,7 +71,7 @@ fn add_gitignore_from(f: File) {
         println!("{:?}", local_gitignore);
     }
     let mut bufwriter = BufWriter::new(local_gitignore);
-    let _ = bufwriter.write_all(&content).unwrap();
+    bufwriter.write_all(&content).unwrap();
     bufwriter.flush().unwrap();
 }
 
