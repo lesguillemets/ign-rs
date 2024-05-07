@@ -40,20 +40,24 @@ fn local_gitignore_or_create() -> File {
     }
 }
 
-fn run(gitignore_dir: &str, ftstr: &str, ft_aliases: &HashMap<&str, &str>, write_to_file: bool) {
-    let ft: &str = if let Some(t) = ft_aliases.get(ftstr) {
+fn run(c: Command) {
+    // gitignore_dir: &str, ftstr: &str, ft_aliases: &HashMap<&str, &str>, write_to_file: bool) {
+    let ft: &str = if let Some(t) = c.ft_aliases.get(c.ft_str) {
         // if there's a defined aliase for ftstr, prefer that
         t
     } else {
-        &(ftstr.to_lowercase())
+        &(c.ft_str.to_lowercase())
     };
-    eprintln!("by {}, searching for {} from {}", ftstr, ft, gitignore_dir);
-    if let Some(f) = search_gitignore_file(gitignore_dir, ft) {
+    eprintln!(
+        "by {}, searching for {} from {}",
+        c.ft_str, ft, c.gitignore_dir
+    );
+    if let Some(f) = search_gitignore_file(c.gitignore_dir, ft) {
         // we have found the .gitignore!
         if DEBUG {
             eprintln!("Found {:?}", f)
         };
-        if write_to_file {
+        if c.option.write_to_file {
             add_gitignore_from(f);
         } else {
             print_gitignore_from(f);
@@ -114,16 +118,40 @@ fn gitignore_repo_not_found() {
 
 fn help() {}
 
+struct Command<'a> {
+    gitignore_dir: &'a str,
+    ft_str: &'a str,
+    ft_aliases: &'a HashMap<&'a str, &'a str>,
+    option: CommandOption,
+}
+
+struct CommandOption {
+    write_to_file: bool,
+}
+impl CommandOption {
+    fn default() -> Self {
+        CommandOption {
+            write_to_file: false,
+        }
+    }
+}
+
 fn main() {
     let gitignore_dir = gitignore_repo_dir();
     let fts = env::args().nth(1);
     let ft_aliases = ign::ft_aliases();
+    let def = CommandOption::default();
     match (gitignore_dir, fts) {
         (_, None) => {
             // no file type is given
             help()
         }
         (None, _) => gitignore_repo_not_found(),
-        (Some(ig), Some(ft)) => run(&ig, &ft, &ft_aliases, false),
+        (Some(ig), Some(ft)) => run(Command {
+            gitignore_dir: &ig,
+            ft_str: &ft,
+            ft_aliases: &ft_aliases,
+            option: def,
+        }),
     }
 }
