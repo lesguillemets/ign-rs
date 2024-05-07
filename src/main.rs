@@ -4,7 +4,7 @@ use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
-use std::io::{BufReader, BufWriter};
+use std::io::{stdout, BufReader, BufWriter};
 use std::path::Path;
 
 const DEBUG: bool = false;
@@ -40,35 +40,48 @@ fn local_gitignore_or_create() -> File {
     }
 }
 
-fn run(gitignore_dir: &str, ftstr: &str, ft_aliases: &HashMap<&str, &str>) {
+fn run(gitignore_dir: &str, ftstr: &str, ft_aliases: &HashMap<&str, &str>, write_to_file: bool) {
     let ft: &str = if let Some(t) = ft_aliases.get(ftstr) {
         // if there's a defined aliase for ftstr, prefer that
         t
     } else {
         &(ftstr.to_lowercase())
     };
-    println!("by {}, searching for {} from {}", ftstr, ft, gitignore_dir);
+    eprintln!("by {}, searching for {} from {}", ftstr, ft, gitignore_dir);
     if let Some(f) = search_gitignore_file(gitignore_dir, ft) {
+        // we have found the .gitignore!
         if DEBUG {
-            println!("Found {:?}", f)
+            eprintln!("Found {:?}", f)
         };
-        add_gitignore_from(f)
+        if write_to_file {
+            add_gitignore_from(f);
+        } else {
+            print_gitignore_from(f);
+        }
     } else {
-        println!("gitignore not found for {}: aborting", ft);
+        eprintln!("gitignore not found for {}: aborting", ft);
         return;
     }
 }
 
-fn add_gitignore_from(f: File) {
-    let mut bufreader = BufReader::new(f);
+fn print_gitignore_from(the_gitignore: File) {
+    let out = stdout();
+    let mut out = BufWriter::new(out.lock());
+    for line in BufReader::new(the_gitignore).lines() {
+        writeln!(out, "{}", line.unwrap()).unwrap();
+    }
+}
+
+fn add_gitignore_from(the_gitignore: File) {
+    let mut bufreader = BufReader::new(the_gitignore);
     let mut content = vec![];
     let _ = bufreader.read_to_end(&mut content).unwrap();
     if DEBUG {
-        println!("adding {:?}", content);
+        eprintln!("adding {:?}", content);
     }
     let local_gitignore = local_gitignore_or_create();
     if DEBUG {
-        println!("{:?}", local_gitignore);
+        eprintln!("{:?}", local_gitignore);
     }
     let mut bufwriter = BufWriter::new(local_gitignore);
     bufwriter.write_all(&content).unwrap();
@@ -88,7 +101,7 @@ fn search_gitignore_file(dir: &str, ft: &str) -> Option<File> {
 }
 
 fn gitignore_repo_not_found() {
-    println!(
+    eprintln!(
         "\
         The direcrtory where .gitignore-s are stored is not found:\n\
         (0) You have to manually clone it somewhere:\n\
@@ -111,6 +124,6 @@ fn main() {
             help()
         }
         (None, _) => gitignore_repo_not_found(),
-        (Some(ig), Some(ft)) => run(&ig, &ft, &ft_aliases),
+        (Some(ig), Some(ft)) => run(&ig, &ft, &ft_aliases, false),
     }
 }
