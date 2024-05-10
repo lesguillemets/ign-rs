@@ -65,11 +65,23 @@ fn add_gitignore_from(the_gitignore: File) {
 
 fn search_gitignore_file(dir: &str, ft: &str) -> Option<File> {
     // for example, "haskell.gitignore"
+    // TODO: skip. git dir
     let target_filename = format!("{}.gitignore", ft);
     for entry in fs::read_dir(dir).ok()? {
         let entry = entry.ok()?;
         if entry.file_name().to_str()?.to_lowercase() == target_filename {
             return File::open(entry.path()).ok();
+        } else if entry.file_type().ok()?.is_dir() {
+            // dig deeper into directory
+            if DEBUG {
+                eprintln!(
+                    "debug: trying to read this file {:?}",
+                    entry.path().to_str()
+                );
+            }
+            if let Some(f) = search_gitignore_file(entry.path().to_str()?, ft) {
+                return Some(f);
+            }
         }
     }
     None
